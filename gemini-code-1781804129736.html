@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快記代購</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex justify-center items-start pt-4 px-2">
+
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col" style="min-height: 750px;">
+        
+        <div class="bg-stone-800 text-white px-6 py-4 flex justify-between items-center">
+            <div>
+                <span class="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold mr-2">PWA 離線版</span>
+                <span class="font-medium text-sm">出國連線記帳 ✈️</span>
+            </div>
+            <i class="fa-solid fa-wifi-slash text-gray-400"></i>
+        </div>
+
+        <div id="screen-quick-record" class="p-5 flex-1 flex flex-col justify-between">
+            <div class="space-y-5">
+                <div class="text-lg font-bold text-gray-800 border-b pb-2"><i class="fa-solid fa-bolt text-amber-500 mr-2"></i>店面現場快记</div>
+                
+                <div class="border-2 border-dashed border-gray-300 rounded-2xl h-36 flex flex-col justify-center items-center bg-gray-50">
+                    <i class="fa-solid fa-camera text-3xl text-gray-400 mb-2"></i>
+                    <span class="text-xs text-gray-500">拍照暫不支援，請先記金額</span>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">外幣總額 (單筆交易)</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-3 text-gray-400 font-bold">¥</span>
+                        <input type="number" id="quick-total" class="w-full bg-gray-50 border border-gray-300 rounded-xl py-3 pl-9 pr-4 text-xl font-bold text-gray-800 focus:outline-none" placeholder="0">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-2">選擇支付工具</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="border border-stone-800 bg-stone-50 rounded-xl p-3 flex flex-col cursor-pointer">
+                            <span class="text-sm font-bold text-stone-800">💳 預設信用卡</span>
+                            <span class="text-xs text-gray-500">海外 1.5% / 回饋 3%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="goToSplitScreen()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl text-center shadow-lg transition mt-6">
+                下車回飯店拆單 ➔
+            </button>
+        </div>
+
+        <div id="screen-split-bill" class="p-5 flex-1 flex flex-col justify-between hidden bg-stone-50">
+            <div class="space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <span class="text-lg font-bold text-gray-800"><i class="fa-solid fa-hotel text-indigo-500 mr-2"></i>飯店拆單對帳</span>
+                    <button onclick="goToRecordScreen()" class="text-sm text-gray-500 underline">返回快記</button>
+                </div>
+
+                <div id="status-card" class="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center">
+                    <div class="text-xs text-gray-500">發票總額 <span id="lbl-total">0</span> JPY</div>
+                    <div class="text-xl font-black text-rose-600 my-1" id="lbl-diff">❌ 尚未對齊</div>
+                    <div class="text-xs text-gray-400">已分配：<span id="lbl-allocated">0</span> JPY</div>
+                </div>
+
+                <div class="space-y-3 max-h-64 overflow-y-auto pr-1" id="items-container">
+                    </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button onclick="addNewItem()" class="border border-gray-300 rounded-xl py-2 text-xs font-bold bg-white">➕ 新增下一筆</button>
+                    <button onclick="autoFillPersonal()" class="bg-amber-100 text-amber-800 rounded-xl py-2 text-xs font-bold">🛍️ 剩餘歸自用</button>
+                </div>
+            </div>
+
+            <button id="btn-submit" disabled onclick="saveData()" class="w-full bg-gray-300 text-gray-500 font-bold py-4 rounded-xl text-center cursor-not-allowed mt-6">
+                驗證未通過
+            </button>
+        </div>
+
+        <div id="screen-history" class="p-5 flex-1 flex flex-col justify-between hidden">
+            <div class="space-y-4 w-full">
+                <div class="text-lg font-bold text-gray-800 border-b pb-2"><i class="fa-solid fa-database text-blue-500 mr-2"></i>已存帳目與備份</div>
+                <div class="flex space-x-2">
+                    <button onclick="exportData('json')" class="flex-1 bg-stone-700 text-white text-xs py-2 rounded-lg font-bold"><i class="fa-solid fa-file-code mr-1"></i>備份 JSON</button>
+                    <button onclick="exportData('csv')" class="flex-1 bg-blue-600 text-white text-xs py-2 rounded-lg font-bold"><i class="fa-solid fa-file-csv mr-1"></i>匯出 CSV (Excel)</button>
+                </div>
+                <div id="history-list" class="space-y-2 max-h-96 overflow-y-auto text-xs text-gray-600">
+                    </div>
+            </div>
+        </div>
+
+        <div class="bg-white border-t border-gray-200 grid grid-cols-3 text-center py-2 text-xs font-medium text-gray-400">
+            <div class="text-stone-800 cursor-pointer nav-btn" id="btn-nav-record" onclick="switchTab('record')">
+                <i class="fa-solid fa-bolt text-lg block mb-0.5"></i>現場快記
+            </div>
+            <div class="cursor-pointer nav-btn" id="btn-nav-split" onclick="switchTab('split')">
+                <i class="fa-solid fa-layer-group text-lg block mb-0.5"></i>拆單中
+            </div>
+            <div class="cursor-pointer nav-btn" id="btn-nav-history" onclick="switchTab('history')">
+                <i class="fa-solid fa-database text-lg block mb-0.5"></i>歷史備份
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let totalAmount = 0;
+        let itemIndex = 0;
+        let savedRecords = JSON.parse(localStorage.getItem('buy_ledger_records')) || [];
+
+        function switchTab(tab) {
+            document.getElementById('screen-quick-record').classList.add('hidden');
+            document.getElementById('screen-split-bill').classList.add('hidden');
+            document.getElementById('screen-history').classList.add('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('text-stone-800'));
+
+            if(tab === 'record') {
+                document.getElementById('screen-quick-record').classList.remove('hidden');
+                document.getElementById('btn-nav-record').classList.add('text-stone-800');
+            } else if(tab === 'split') {
+                document.getElementById('screen-split-bill').classList.remove('hidden');
+                document.getElementById('btn-nav-split').classList.add('text-stone-800');
+            } else if(tab === 'history') {
+                document.getElementById('screen-history').classList.remove('hidden');
+                document.getElementById('btn-nav-history').classList.add('text-stone-800');
+                renderHistory();
+            }
+        }
+
+        function goToSplitScreen() {
+            const val = document.getElementById('quick-total').value;
+            totalAmount = val ? parseInt(val) : 0;
+            document.getElementById('lbl-total').innerText = totalAmount.toLocaleString();
+            document.getElementById('items-container').innerHTML = '';
+            itemIndex = 0;
+            addNewItem();
+            switchTab('split');
+        }
+
+        function goToRecordScreen() { switchTab('record'); }
+
+        function addNewItem() {
+            itemIndex++;
+            const container = document.getElementById('items-container');
+            const html = `
+                <div class="bg-white border rounded-xl p-3 shadow-sm space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-gray-400"># 明細 ${itemIndex}</span>
+                        <select class="item-type bg-gray-100 rounded px-1 py-0.5 font-bold">
+                            <option value="buying">📦 代購</option>
+                            <option value="personal">🛍️ 自用</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1">
+                        <input type="number" oninput="calculateSplit()" class="item-amount w-full bg-gray-50 border rounded p-1.5 text-sm font-bold" placeholder="金額">
+                        <input type="text" class="item-buyer w-full bg-gray-50 border rounded p-1.5 text-sm" placeholder="買家/自己">
+                        <input type="text" class="item-note w-full bg-gray-50 border rounded p-1.5 text-sm text-gray-400" placeholder="備註">
+                    </div>
+                </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            calculateSplit();
+        }
+
+        function calculateSplit() {
+            const inputs = document.querySelectorAll('.item-amount');
+            let allocated = 0;
+            inputs.forEach(i => { if(!isNaN(parseInt(i.value))) allocated += parseInt(i.value); });
+
+            const diff = totalAmount - allocated;
+            const card = document.getElementById('status-card');
+            const lblDiff = document.getElementById('lbl-diff');
+            const btn = document.getElementById('btn-submit');
+            document.getElementById('lbl-allocated').innerText = allocated.toLocaleString();
+
+            if(diff === 0 && totalAmount > 0) {
+                card.className = "bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center";
+                lblDiff.className = "text-xl font-black text-emerald-600 my-1";
+                lblDiff.innerText = "✅ 金額已完全對齊！";
+                btn.disabled = false;
+                btn.className = "w-full bg-emerald-600 text-white font-bold py-4 rounded-xl text-center cursor-pointer mt-6";
+                btn.innerText = "💾 確認拆分，儲存進本地";
+            } else {
+                card.className = "bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center";
+                lblDiff.className = "text-xl font-black text-rose-600 my-1";
+                lblDiff.innerText = diff > 0 ? `❌ 尚未對齊 (差 ${diff})` : `⚠️ 超出總額 (${Math.abs(diff)})`;
+                btn.disabled = true;
+                btn.className = "w-full bg-gray-300 text-gray-500 font-bold py-4 rounded-xl text-center cursor-not-allowed mt-6";
+                btn.innerText = "驗證未通過";
+            }
+        }
+
+        function autoFillPersonal() {
+            const inputs = document.querySelectorAll('.item-amount');
+            let allocated = 0;
+            inputs.forEach(i => { if(!isNaN(parseInt(i.value))) allocated += parseInt(i.value); });
+            const diff = totalAmount - allocated;
+            if(diff <= 0) return;
+
+            addNewItem();
+            const lastBlock = document.getElementById('items-container').lastElementChild;
+            lastBlock.querySelector('.item-amount').value = diff;
+            lastBlock.querySelector('.item-type').value = 'personal';
+            lastBlock.querySelector('.item-buyer').value = '自己';
+            lastBlock.querySelector('.item-note').value = '混刷尾數';
+            calculateSplit();
+        }
+
+        function saveData() {
+            const blocks = document.getElementById('items-container').children;
+            let items = [];
+            for(let b of blocks) {
+                items.push({
+                    type: b.querySelector('.item-type').value,
+                    amount: parseInt(b.querySelector('.item-amount').value),
+                    buyer: b.querySelector('.item-buyer').value || '未填',
+                    note: b.querySelector('.item-note').value || ''
+                });
+            }
+            savedRecords.push({ date: new Date().toLocaleString(), total: totalAmount, details: items });
+            localStorage.setItem('buy_ledger_records', JSON.stringify(savedRecords));
+            alert('儲存成功！已放入歷史資料');
+            document.getElementById('quick-total').value = '';
+            switchTab('history');
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            if(savedRecords.length === 0) { list.innerHTML = '暫無歷史紀錄'; return; }
+            list.innerHTML = savedRecords.map((r, idx) => `
+                <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    <div class="font-bold text-gray-700 flex justify-between"><span>📅 ${r.date}</span><span class="text-emerald-600">總額: ¥${r.total}</span></div>
+                    <div class="mt-1 space-y-0.5 text-[11px] text-gray-500">
+                        ${r.details.map(d => `• [${d.type==='buying'?'代購':'自用'}] ${d.buyer}: ¥${r.amount} (${r.note})`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportData(type) {
+            if(savedRecords.length === 0) { alert('沒有資料可以匯出'); return; }
+            let dataStr = "", filename = `代購帳本備份_${new Date().toLocaleDateString()}`;
+            if(type === 'json') {
+                dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedRecords, null, 2));
+                filename += ".json";
+            } else {
+                let csvContent = "\uFEFF日期,總金額,類型,金額,買家,備註\n";
+                savedRecords.forEach(r => {
+                    r.details.forEach(d => {
+                        csvContent += `"${r.date}","${r.total}","${d.type==='buying'?'代購':'自用'}","${d.amount}","${d.buyer}","${d.note}"\n`;
+                    });
+                });
+                dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+                filename += ".csv";
+            }
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", filename);
+            dl.click();
+        }
+
+        // 註冊 PWA Service Worker 達成離線可用
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => console.log('PWA Service Worker 註冊成功'));
+        }
+    </script>
+</body>
+</html>
